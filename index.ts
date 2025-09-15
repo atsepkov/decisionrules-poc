@@ -1,3 +1,6 @@
+import { config as dotenvConfig } from "dotenv";
+dotenvConfig();
+
 import DecisionRules from "@decisionrules/decisionrules";
 
 const solverKey = process.env.SOLVER_KEY || "";

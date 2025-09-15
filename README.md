@@ -10,7 +10,12 @@ Install dependencies:
 bun install
 ```
 
-The service expects environment variables for your DecisionRules IDs:
+Copy `.env.example` to `.env` and fill in your DecisionRules IDs:
+
+```bash
+cp .env.example .env
+# edit .env
+```
 
 | Variable | Description |
 | --- | --- |

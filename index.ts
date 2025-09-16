@@ -12,9 +12,6 @@ const decisionRulesHost =
   process.env.DECISION_RULES_HOST || "https://api.decisionrules.io";
 
 const dr = new DecisionRules({ solverKey, host: decisionRulesHost });
-const solverClient = dr as unknown as {
-  solve(ruleId: string, version: string, payload: unknown): Promise<any>;
-};
 
 type Part = {
   basePrice: number;
@@ -27,9 +24,9 @@ type Part = {
 
 async function calcPriceWithRules(part: Part) {
   const [markupRes, discountRes, manufactRes] = await Promise.all([
-    solverClient.solve(markupRuleId, "latest", part),
-    solverClient.solve(discountRuleId, "latest", part),
-    solverClient.solve(manufactRuleId, "latest", part),
+    dr.solve(markupRuleId, part, "latest"),
+    dr.solve(discountRuleId, part, "latest"),
+    dr.solve(manufactRuleId, part, "latest"),
   ]);
 
   const markupAmt = (markupRes as any).markupAmount ?? 0;
@@ -40,11 +37,11 @@ async function calcPriceWithRules(part: Part) {
 }
 
 async function calcPriceViaFlow(part: Part) {
-  return solverClient.solve(pricingFlowId, "latest", part);
+  return dr.solve(pricingFlowId, part, "latest");
 }
 
 async function calcPriceViaFlowBatch(parts: Part[]) {
-  return solverClient.solve(pricingFlowId, "latest", parts);
+  return dr.solve(pricingFlowId, parts, "latest");
 }
 
 const htmlFilePath = "public/index.html";

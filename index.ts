@@ -8,8 +8,13 @@ const markupRuleId = process.env.MARKUP_RULE_ID || "";
 const discountRuleId = process.env.DISCOUNT_RULE_ID || "";
 const manufactRuleId = process.env.MANUFACTUR_RULE_ID || "";
 const pricingFlowId = process.env.PRICING_FLOW_ID || "";
+const decisionRulesHost =
+  process.env.DECISION_RULES_HOST || "https://api.decisionrules.io";
 
-const dr = new DecisionRules({ solverKey });
+const dr = new DecisionRules({ solverKey, host: decisionRulesHost });
+const solverClient = dr as unknown as {
+  solve(ruleId: string, version: string, payload: unknown): Promise<any>;
+};
 
 type Part = {
   basePrice: number;
@@ -22,9 +27,9 @@ type Part = {
 
 async function calcPriceWithRules(part: Part) {
   const [markupRes, discountRes, manufactRes] = await Promise.all([
-    dr.solve(markupRuleId, "latest", part),
-    dr.solve(discountRuleId, "latest", part),
-    dr.solve(manufactRuleId, "latest", part),
+    solverClient.solve(markupRuleId, "latest", part),
+    solverClient.solve(discountRuleId, "latest", part),
+    solverClient.solve(manufactRuleId, "latest", part),
   ]);
 
   const markupAmt = (markupRes as any).markupAmount ?? 0;
@@ -35,26 +40,460 @@ async function calcPriceWithRules(part: Part) {
 }
 
 async function calcPriceViaFlow(part: Part) {
-  return dr.solve(pricingFlowId, "latest", part);
+  return solverClient.solve(pricingFlowId, "latest", part);
 }
 
 async function calcPriceViaFlowBatch(parts: Part[]) {
-  return dr.solve(pricingFlowId, "latest", parts);
+  return solverClient.solve(pricingFlowId, "latest", parts);
 }
+
+const htmlPage = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>DecisionRules Pricing Demo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    color-scheme: light;
+  }
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: #f4f5f7;
+    color: #111827;
+  }
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+  h1 {
+    margin-top: 0;
+    font-size: 2rem;
+  }
+  h2 {
+    margin-top: 0;
+    font-size: 1.25rem;
+  }
+  p {
+    line-height: 1.6;
+  }
+  .panel {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  }
+  .grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+  label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+  }
+  input,
+  textarea,
+  select {
+    width: 100%;
+    padding: 0.6rem 0.7rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    background: #f8fafc;
+    transition: border 0.2s ease, box-shadow 0.2s ease;
+  }
+  input:focus,
+  textarea:focus,
+  select:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+    background: #fff;
+  }
+  textarea {
+    min-height: 72px;
+    resize: vertical;
+  }
+  .button-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+  }
+  button {
+    appearance: none;
+    border: none;
+    background: #2563eb;
+    color: #fff;
+    padding: 0.75rem 1.5rem;
+    border-radius: 999px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  }
+  button:hover {
+    background: #1d4ed8;
+    box-shadow: 0 10px 25px rgba(37, 99, 235, 0.25);
+    transform: translateY(-1px);
+  }
+  button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+  }
+  .code-block {
+    background: #0f172a;
+    color: #f8fafc;
+    padding: 1rem;
+    border-radius: 10px;
+    overflow-x: auto;
+    font-family: "Fira Code", "Source Code Pro", monospace;
+    font-size: 0.9rem;
+    margin-top: 0.75rem;
+  }
+  .status {
+    margin-top: 1.5rem;
+    font-weight: 600;
+  }
+  .status.success {
+    color: #047857;
+  }
+  .status.error {
+    color: #dc2626;
+  }
+  .status.info {
+    color: #2563eb;
+  }
+  .summary {
+    margin-top: 0.5rem;
+    font-weight: 600;
+  }
+  @media (max-width: 600px) {
+    main {
+      padding: 1.5rem 1rem 3rem;
+    }
+    button {
+      width: 100%;
+      text-align: center;
+    }
+  }
+</style>
+</head>
+<body>
+  <main>
+    <h1>DecisionRules Pricing Demo</h1>
+    <p>Generate random parts with your own parameters and send them to the DecisionRules solver. View the responses alongside the round-trip timing.</p>
+
+    <section class="panel">
+      <h2>Part generation</h2>
+      <div class="grid">
+        <div>
+          <label for="partCount">Number of parts</label>
+          <input id="partCount" type="number" min="1" max="500" value="5" />
+        </div>
+        <div>
+          <label for="basePriceMin">Base price (min)</label>
+          <input id="basePriceMin" type="number" value="50" step="0.01" />
+        </div>
+        <div>
+          <label for="basePriceMax">Base price (max)</label>
+          <input id="basePriceMax" type="number" value="250" step="0.01" />
+        </div>
+        <div>
+          <label for="quantityMin">Quantity (min)</label>
+          <input id="quantityMin" type="number" value="1" />
+        </div>
+        <div>
+          <label for="quantityMax">Quantity (max)</label>
+          <input id="quantityMax" type="number" value="10" />
+        </div>
+      </div>
+      <div class="grid" style="margin-top: 1rem;">
+        <div>
+          <label for="methodOptions">Manufacturing methods (comma separated)</label>
+          <textarea id="methodOptions">machining,casting,forging,3d printing</textarea>
+        </div>
+        <div>
+          <label for="materialOptions">Materials (comma separated)</label>
+          <textarea id="materialOptions">aluminum,steel,polycarbonate,titanium</textarea>
+        </div>
+        <div>
+          <label for="tierOptions">Customer tiers (comma separated)</label>
+          <textarea id="tierOptions">standard,gold,platinum,enterprise</textarea>
+        </div>
+      </div>
+      <div class="button-row">
+        <button id="generateBtn" type="button">Generate parts</button>
+      </div>
+      <p class="summary">Generated parts: <span id="partSummary">0</span></p>
+      <pre id="partsOutput" class="code-block">No parts generated yet.</pre>
+    </section>
+
+    <section class="panel">
+      <h2>Solver</h2>
+      <label for="solverMode">Solver mode</label>
+      <select id="solverMode">
+        <option value="rules">Rules (markup, discount, manufacturability)</option>
+        <option value="flow">Pricing flow (per part)</option>
+        <option value="flowBatch">Pricing flow (batch)</option>
+      </select>
+      <div class="button-row">
+        <button id="solveBtn" type="button">Run solver</button>
+      </div>
+      <p id="responseTime" class="summary"></p>
+      <pre id="results" class="code-block"></pre>
+    </section>
+
+    <p id="status" class="status"></p>
+  </main>
+
+  <script>
+    (function () {
+      var generateButton = document.getElementById("generateBtn");
+      var solveButton = document.getElementById("solveBtn");
+      var partCountInput = document.getElementById("partCount");
+      var methodInput = document.getElementById("methodOptions");
+      var materialInput = document.getElementById("materialOptions");
+      var tierInput = document.getElementById("tierOptions");
+      var baseMinInput = document.getElementById("basePriceMin");
+      var baseMaxInput = document.getElementById("basePriceMax");
+      var quantityMinInput = document.getElementById("quantityMin");
+      var quantityMaxInput = document.getElementById("quantityMax");
+      var partsOutput = document.getElementById("partsOutput");
+      var resultsOutput = document.getElementById("results");
+      var statusEl = document.getElementById("status");
+      var responseTimeEl = document.getElementById("responseTime");
+      var partSummaryEl = document.getElementById("partSummary");
+      var solverModeEl = document.getElementById("solverMode");
+
+      var generatedParts = [];
+
+      function setStatus(message, type) {
+        if (!statusEl) {
+          return;
+        }
+        statusEl.textContent = message;
+        statusEl.className = "status" + (type ? " " + type : "");
+      }
+
+      function parseList(value) {
+        return value
+          .split(",")
+          .map(function (item) {
+            return item.trim();
+          })
+          .filter(function (item) {
+            return item.length > 0;
+          });
+      }
+
+      function randomItem(list) {
+        var index = Math.floor(Math.random() * list.length);
+        return list[index];
+      }
+
+      function randomFloat(min, max, decimals) {
+        var factor = Math.pow(10, decimals);
+        return Math.round((Math.random() * (max - min) + min) * factor) / factor;
+      }
+
+      function randomInt(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+
+      function renderParts() {
+        if (!partsOutput || !partSummaryEl) {
+          return;
+        }
+        if (!generatedParts.length) {
+          partsOutput.textContent = "No parts generated yet.";
+        } else {
+          partsOutput.textContent = JSON.stringify(generatedParts, null, 2);
+        }
+        partSummaryEl.textContent = String(generatedParts.length);
+      }
+
+      if (generateButton) {
+        generateButton.addEventListener("click", function () {
+          setStatus("", "");
+          if (responseTimeEl) {
+            responseTimeEl.textContent = "";
+          }
+          if (resultsOutput) {
+            resultsOutput.textContent = "";
+          }
+
+          var count = parseInt(partCountInput && partCountInput.value ? partCountInput.value : "0", 10);
+          if (!Number.isFinite(count) || count <= 0) {
+            setStatus("Part count must be a positive number.", "error");
+            return;
+          }
+
+          var methods = parseList(methodInput && methodInput.value ? methodInput.value : "");
+          var materials = parseList(materialInput && materialInput.value ? materialInput.value : "");
+          var tiers = parseList(tierInput && tierInput.value ? tierInput.value : "");
+
+          if (!methods.length || !materials.length || !tiers.length) {
+            setStatus("Please provide at least one value for methods, materials and customer tiers.", "error");
+            return;
+          }
+
+          var baseMin = parseFloat(baseMinInput && baseMinInput.value ? baseMinInput.value : "");
+          var baseMax = parseFloat(baseMaxInput && baseMaxInput.value ? baseMaxInput.value : "");
+          var quantityMin = parseInt(quantityMinInput && quantityMinInput.value ? quantityMinInput.value : "", 10);
+          var quantityMax = parseInt(quantityMaxInput && quantityMaxInput.value ? quantityMaxInput.value : "", 10);
+
+          if (!Number.isFinite(baseMin) || !Number.isFinite(baseMax) || baseMin > baseMax) {
+            setStatus("Base price range is invalid.", "error");
+            return;
+          }
+
+          if (!Number.isFinite(quantityMin) || !Number.isFinite(quantityMax) || quantityMin > quantityMax) {
+            setStatus("Quantity range is invalid.", "error");
+            return;
+          }
+
+          generatedParts = [];
+          for (var i = 0; i < count; i++) {
+            generatedParts.push({
+              basePrice: randomFloat(baseMin, baseMax, 2),
+              quantity: randomInt(quantityMin, quantityMax),
+              method: randomItem(methods),
+              material: randomItem(materials),
+              customerTier: randomItem(tiers),
+            });
+          }
+
+          setStatus("Generated " + generatedParts.length + " part(s).", "success");
+          renderParts();
+        });
+      }
+
+      async function runSolver() {
+        if (!generatedParts.length) {
+          setStatus("Generate parts before running the solver.", "error");
+          return;
+        }
+
+        var endpoint = "/rules";
+        var mode = solverModeEl && solverModeEl.value ? solverModeEl.value : "rules";
+        if (mode === "flow") {
+          endpoint = "/flow";
+        } else if (mode === "flowBatch") {
+          endpoint = "/flow?batch=true";
+        }
+
+        setStatus("Sending " + generatedParts.length + " part(s) to the solver...", "info");
+        if (solveButton) {
+          solveButton.disabled = true;
+        }
+        if (responseTimeEl) {
+          responseTimeEl.textContent = "";
+        }
+        if (resultsOutput) {
+          resultsOutput.textContent = "";
+        }
+
+        var started = performance.now();
+
+        try {
+          var response = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(generatedParts),
+          });
+
+          var finished = performance.now();
+          var duration = finished - started;
+
+          if (!response.ok) {
+            var errorText = await response.text();
+            throw new Error(errorText || "Solver request failed.");
+          }
+
+          var payload = await response.json();
+          if (responseTimeEl) {
+            responseTimeEl.textContent = "Response time: " + duration.toFixed(2) + " ms";
+          }
+          if (resultsOutput) {
+            resultsOutput.textContent = JSON.stringify(payload, null, 2);
+          }
+          setStatus("Solver completed successfully.", "success");
+        } catch (error) {
+          if (responseTimeEl) {
+            responseTimeEl.textContent = "";
+          }
+          if (resultsOutput) {
+            resultsOutput.textContent = "";
+          }
+          if (error instanceof Error) {
+            setStatus(error.message, "error");
+          } else {
+            setStatus("Unexpected error occurred.", "error");
+          }
+        } finally {
+          if (solveButton) {
+            solveButton.disabled = false;
+          }
+        }
+      }
+
+      if (solveButton) {
+        solveButton.addEventListener("click", function () {
+          runSolver();
+        });
+      }
+
+      renderParts();
+    })();
+  </script>
+</body>
+</html>`;
 
 const server = Bun.serve({
   port: 3000,
   async fetch(req) {
-    if (req.method !== "POST") {
-      return new Response("Only POST supported", { status: 405 });
+    const url = new URL(req.url);
+
+    if (req.method === "GET") {
+      if (url.pathname === "/") {
+        return new Response(htmlPage, {
+          headers: { "Content-Type": "text/html; charset=utf-8" },
+        });
+      }
+
+      if (url.pathname === "/favicon.ico") {
+        return new Response(null, { status: 404 });
+      }
+
+      return new Response("Not Found", { status: 404 });
     }
 
-    const url = new URL(req.url);
+    if (req.method !== "POST") {
+      return new Response("Method Not Allowed", { status: 405 });
+    }
+
     let parts: Part[];
+
     try {
-      parts = await req.json();
+      const body = await req.json();
+      if (!Array.isArray(body)) {
+        throw new Error("Body must be an array");
+      }
+      parts = body as Part[];
     } catch (err) {
-      return new Response("Invalid JSON", { status: 400 });
+      return new Response("Body must be a JSON array of parts", { status: 400 });
     }
 
     try {
@@ -62,19 +501,20 @@ const server = Bun.serve({
         const results = await Promise.all(parts.map(calcPriceWithRules));
         return Response.json(results);
       }
+
       if (url.pathname === "/flow") {
         if (url.searchParams.get("batch") === "true") {
           const results = await calcPriceViaFlowBatch(parts);
           return Response.json(results);
-        } else {
-          const results = await Promise.all(parts.map(calcPriceViaFlow));
-          return Response.json(results);
         }
+        const results = await Promise.all(parts.map(calcPriceViaFlow));
+        return Response.json(results);
       }
+
       return new Response("Not Found", { status: 404 });
     } catch (err: any) {
       console.error(err);
-      return new Response(err.message ?? "Error", { status: 500 });
+      return new Response(err?.message ?? "Error", { status: 500 });
     }
   },
 });

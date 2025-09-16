@@ -22,6 +22,51 @@ type Part = {
   [key: string]: any;
 };
 
+function summarizeParts(parts: Part[]) {
+  return {
+    count: parts.length,
+    sample: parts.slice(0, 3),
+  };
+}
+
+function safeStringify(value: unknown) {
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch (error) {
+    return String(value);
+  }
+}
+
+function logDecisionRulesError(
+  err: unknown,
+  context: { path: string; parts: Part[] }
+) {
+  const baseLog = {
+    timestamp: new Date().toISOString(),
+    path: context.path,
+    parts: summarizeParts(context.parts),
+  };
+
+  if (err instanceof Error) {
+    const { cause, message, stack } = err as Error & { cause?: unknown };
+    console.error("[DecisionRules] Request failed", {
+      ...baseLog,
+      message,
+    });
+    if (cause !== undefined) {
+      console.error("[DecisionRules] Cause", safeStringify(cause));
+    }
+    if (stack) {
+      console.error(stack);
+    }
+  } else {
+    console.error("[DecisionRules] Non-error thrown", {
+      ...baseLog,
+      value: err,
+    });
+  }
+}
+
 async function calcPriceWithRules(part: Part) {
   const [markupRes, discountRes, manufactRes] = await Promise.all([
     dr.solve(markupRuleId, part, "latest"),
@@ -107,7 +152,7 @@ const server = Bun.serve({
 
       return new Response("Not Found", { status: 404 });
     } catch (err: any) {
-      console.error(err);
+      logDecisionRulesError(err, { path: url.pathname, parts });
       return new Response(err?.message ?? "Error", { status: 500 });
     }
   },

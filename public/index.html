@@ -103,6 +103,38 @@
         box-shadow: none;
         transform: none;
       }
+      .results-container {
+        margin-top: 1rem;
+      }
+      .results-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 0.5rem;
+      }
+      .results-summary-text {
+        margin: 0;
+        font-size: 0.95rem;
+        color: #475569;
+        flex: 1;
+      }
+      .toggle-button {
+        background: transparent;
+        color: #2563eb;
+        border: 1px solid #2563eb;
+        padding: 0.45rem 1rem;
+        box-shadow: none;
+      }
+      .toggle-button:hover {
+        background: rgba(37, 99, 235, 0.08);
+        box-shadow: none;
+        transform: none;
+        color: #1d4ed8;
+      }
+      .toggle-button:disabled {
+        opacity: 0.6;
+      }
       .code-block {
         background: #0f172a;
         color: #f8fafc;
@@ -221,7 +253,20 @@
           </button>
         </div>
         <p id="responseTime" class="summary"></p>
-        <pre id="results" class="code-block"></pre>
+        <div id="resultsContainer" class="results-container">
+          <div class="results-header">
+            <p id="resultsSummary" class="results-summary-text"></p>
+            <button
+              type="button"
+              id="resultsToggle"
+              class="toggle-button"
+              hidden
+            >
+              Show all results
+            </button>
+          </div>
+          <pre id="results" class="code-block"></pre>
+        </div>
       </section>
 
       <p id="status" class="status"></p>
@@ -243,11 +288,120 @@
         var quantityMaxInput = document.getElementById("quantityMax");
         var partsOutput = document.getElementById("partsOutput");
         var resultsOutput = document.getElementById("results");
+        var resultsSummaryEl = document.getElementById("resultsSummary");
+        var resultsToggleButton = document.getElementById("resultsToggle");
         var statusEl = document.getElementById("status");
         var responseTimeEl = document.getElementById("responseTime");
         var partSummaryEl = document.getElementById("partSummary");
 
         var generatedParts = [];
+        var latestResultsPayload = null;
+        var showingAllResults = false;
+
+        function stringifyForDisplay(value) {
+          if (typeof value === "string") {
+            return value;
+          }
+          if (
+            typeof value === "number" ||
+            typeof value === "boolean" ||
+            value === null
+          ) {
+            return String(value);
+          }
+          try {
+            return JSON.stringify(value, null, 2);
+          } catch (error) {
+            return String(value);
+          }
+        }
+
+        function updateResultsDisplay() {
+          if (resultsSummaryEl) {
+            resultsSummaryEl.textContent = "";
+          }
+          if (resultsToggleButton) {
+            resultsToggleButton.hidden = true;
+          }
+          if (!resultsOutput) {
+            return;
+          }
+
+          if (latestResultsPayload === null || latestResultsPayload === undefined) {
+            resultsOutput.textContent = "";
+            return;
+          }
+
+          var payload = latestResultsPayload;
+
+          if (Array.isArray(payload)) {
+            var count = payload.length;
+
+            if (count === 0) {
+              resultsOutput.textContent = "[]";
+              if (resultsSummaryEl) {
+                resultsSummaryEl.textContent = "No results returned.";
+              }
+              return;
+            }
+
+            if (!showingAllResults && count > 1) {
+              resultsOutput.textContent = stringifyForDisplay(payload[0]);
+              if (resultsSummaryEl) {
+                resultsSummaryEl.textContent =
+                  "Showing the first result out of " + count + ".";
+              }
+              if (resultsToggleButton) {
+                resultsToggleButton.hidden = false;
+                resultsToggleButton.textContent = "Show all results";
+              }
+              return;
+            }
+
+            resultsOutput.textContent = stringifyForDisplay(payload);
+            if (resultsSummaryEl) {
+              resultsSummaryEl.textContent =
+                count === 1
+                  ? "Showing 1 result."
+                  : "Showing all " + count + " results.";
+            }
+            if (resultsToggleButton) {
+              if (count > 1) {
+                resultsToggleButton.hidden = false;
+                resultsToggleButton.textContent = "Collapse to first result";
+              } else {
+                resultsToggleButton.hidden = true;
+              }
+            }
+            return;
+          }
+
+          resultsOutput.textContent = stringifyForDisplay(payload);
+          if (resultsSummaryEl) {
+            resultsSummaryEl.textContent = "Showing full response.";
+          }
+        }
+
+        function clearResults() {
+          latestResultsPayload = null;
+          showingAllResults = false;
+          updateResultsDisplay();
+        }
+
+        function setResults(payload) {
+          latestResultsPayload = payload;
+          showingAllResults = false;
+          updateResultsDisplay();
+        }
+
+        if (resultsToggleButton) {
+          resultsToggleButton.addEventListener("click", function () {
+            showingAllResults = !showingAllResults;
+            updateResultsDisplay();
+          });
+        }
+
+        updateResultsDisplay();
 
         function setStatus(message, type) {
           if (!statusEl) {
@@ -302,9 +456,7 @@
             if (responseTimeEl) {
               responseTimeEl.textContent = "";
             }
-            if (resultsOutput) {
-              resultsOutput.textContent = "";
-            }
+            clearResults();
 
             var count = parseInt(
               partCountInput && partCountInput.value ? partCountInput.value : "0",
@@ -420,9 +572,7 @@
           if (responseTimeEl) {
             responseTimeEl.textContent = "";
           }
-          if (resultsOutput) {
-            resultsOutput.textContent = "";
-          }
+          clearResults();
 
           var started = performance.now();
 
@@ -450,17 +600,13 @@
                 duration.toFixed(2) +
                 " ms";
             }
-            if (resultsOutput) {
-              resultsOutput.textContent = JSON.stringify(payload, null, 2);
-            }
+            setResults(payload);
             setStatus(formattedLabel + " completed successfully.", "success");
           } catch (error) {
             if (responseTimeEl) {
               responseTimeEl.textContent = "";
             }
-            if (resultsOutput) {
-              resultsOutput.textContent = "";
-            }
+            clearResults();
             if (error instanceof Error) {
               setStatus(
                 formattedLabel + " failed: " + error.message,

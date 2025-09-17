@@ -145,18 +145,43 @@ async function calcPriceViaFlowBatch(parts: Part[]) {
   );
 }
 
-function pairInputsWithResponses(parts: Part[], responses: unknown) {
-  if (Array.isArray(responses)) {
-    return responses.map((payload, index) => ({
-      input: parts[index] ?? null,
-      response: payload,
-    }));
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function mergeInputWithFlowPayload(
+  input: Part | undefined,
+  payload: unknown
+) {
+  const effectiveInput = input ?? null;
+
+  if (Array.isArray(payload)) {
+    if (payload.length === 1 && isPlainObject(payload[0])) {
+      return { ...payload[0], input: effectiveInput };
+    }
+
+    return payload.map((item) =>
+      isPlainObject(item)
+        ? { ...item, input: effectiveInput }
+        : { input: effectiveInput, value: item }
+    );
   }
 
-  return parts.map((part) => ({
-    input: part,
-    response: responses,
-  }));
+  if (isPlainObject(payload)) {
+    return { ...payload, input: effectiveInput };
+  }
+
+  return { input: effectiveInput, value: payload };
+}
+
+function pairInputsWithResponses(parts: Part[], responses: unknown) {
+  if (Array.isArray(responses)) {
+    return responses.map((payload, index) =>
+      mergeInputWithFlowPayload(parts[index], payload)
+    );
+  }
+
+  return parts.map((part) => mergeInputWithFlowPayload(part, responses));
 }
 
 const htmlFilePath = "public/index.html";

@@ -35,11 +35,11 @@ async function calcPriceWithRules(part: Part) {
 }
 
 async function calcPriceViaFlow(part: Part) {
-  return dr.solve(pricingFlowId, "latest", part);
+  return dr.solve(pricingFlowId, { input: part });
 }
 
 async function calcPriceViaFlowBatch(parts: Part[]) {
-  return dr.solve(pricingFlowId, "latest", parts);
+  return dr.solve(pricingFlowId, parts.map((part) => ({ input: part })));
 }
 
 const server = Bun.serve({

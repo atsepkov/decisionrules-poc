@@ -14,7 +14,7 @@ const decisionRulesHost =
 const dr = new DecisionRules({ solverKey, host: decisionRulesHost });
 
 const shouldLogDecisionRulesResponses =
-  String(process.env.DECISION_RULES_LOG_RESPONSES || "").toLowerCase() ===
+  String(process.env.LOG_RESPONSE || "").toLowerCase() ===
   "true";
 
 type Part = {

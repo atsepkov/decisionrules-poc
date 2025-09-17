@@ -196,14 +196,29 @@
 
       <section class="panel">
         <h2>Solver</h2>
-        <label for="solverMode">Solver mode</label>
-        <select id="solverMode">
-          <option value="rules">Rules (markup, discount, manufacturability)</option>
-          <option value="flow">Pricing flow (per part)</option>
-          <option value="flowBatch">Pricing flow (batch)</option>
-        </select>
+        <p>Select which DecisionRules endpoint you want to exercise.</p>
         <div class="button-row">
-          <button id="solveBtn" type="button">Run solver</button>
+          <button
+            type="button"
+            data-solver-mode="rules"
+            data-solver-label="rules solver"
+          >
+            Run rules solver
+          </button>
+          <button
+            type="button"
+            data-solver-mode="flow"
+            data-solver-label="pricing flow (per part)"
+          >
+            Run flow (per part)
+          </button>
+          <button
+            type="button"
+            data-solver-mode="flowBatch"
+            data-solver-label="pricing flow (batch)"
+          >
+            Run flow (batch)
+          </button>
         </div>
         <p id="responseTime" class="summary"></p>
         <pre id="results" class="code-block"></pre>
@@ -215,7 +230,9 @@
     <script>
       (function () {
         var generateButton = document.getElementById("generateBtn");
-        var solveButton = document.getElementById("solveBtn");
+        var solverButtons = Array.prototype.slice.call(
+          document.querySelectorAll("[data-solver-mode]")
+        );
         var partCountInput = document.getElementById("partCount");
         var methodInput = document.getElementById("methodOptions");
         var materialInput = document.getElementById("materialOptions");
@@ -229,7 +246,6 @@
         var statusEl = document.getElementById("status");
         var responseTimeEl = document.getElementById("responseTime");
         var partSummaryEl = document.getElementById("partSummary");
-        var solverModeEl = document.getElementById("solverMode");
 
         var generatedParts = [];
 
@@ -370,15 +386,22 @@
           });
         }
 
-        async function runSolver() {
+        function setSolverButtonsDisabled(disabled) {
+          solverButtons.forEach(function (button) {
+            button.disabled = disabled;
+          });
+        }
+
+        async function runSolver(mode, labelText) {
           if (!generatedParts.length) {
             setStatus("Generate parts before running the solver.", "error");
             return;
           }
 
+          var label = labelText || "solver";
+          var formattedLabel =
+            label.charAt(0).toUpperCase() + label.slice(1);
           var endpoint = "/rules";
-          var mode =
-            solverModeEl && solverModeEl.value ? solverModeEl.value : "rules";
           if (mode === "flow") {
             endpoint = "/flow";
           } else if (mode === "flowBatch") {
@@ -386,12 +409,14 @@
           }
 
           setStatus(
-            "Sending " + generatedParts.length + " part(s) to the solver...",
+            "Sending " +
+              generatedParts.length +
+              " part(s) to the " +
+              label +
+              "...",
             "info"
           );
-          if (solveButton) {
-            solveButton.disabled = true;
-          }
+          setSolverButtonsDisabled(true);
           if (responseTimeEl) {
             responseTimeEl.textContent = "";
           }
@@ -419,12 +444,16 @@
             var payload = await response.json();
             if (responseTimeEl) {
               responseTimeEl.textContent =
-                "Response time: " + duration.toFixed(2) + " ms";
+                "Response time (" +
+                label +
+                "): " +
+                duration.toFixed(2) +
+                " ms";
             }
             if (resultsOutput) {
               resultsOutput.textContent = JSON.stringify(payload, null, 2);
             }
-            setStatus("Solver completed successfully.", "success");
+            setStatus(formattedLabel + " completed successfully.", "success");
           } catch (error) {
             if (responseTimeEl) {
               responseTimeEl.textContent = "";
@@ -433,22 +462,28 @@
               resultsOutput.textContent = "";
             }
             if (error instanceof Error) {
-              setStatus(error.message, "error");
+              setStatus(
+                formattedLabel + " failed: " + error.message,
+                "error"
+              );
             } else {
-              setStatus("Unexpected error occurred.", "error");
+              setStatus(
+                formattedLabel + " failed: Unexpected error occurred.",
+                "error"
+              );
             }
           } finally {
-            if (solveButton) {
-              solveButton.disabled = false;
-            }
+            setSolverButtonsDisabled(false);
           }
         }
 
-        if (solveButton) {
-          solveButton.addEventListener("click", function () {
-            runSolver();
+        solverButtons.forEach(function (button) {
+          button.addEventListener("click", function () {
+            var mode = button.getAttribute("data-solver-mode") || "rules";
+            var label = button.getAttribute("data-solver-label") || "solver";
+            runSolver(mode, label);
           });
-        }
+        });
 
         renderParts();
       })();

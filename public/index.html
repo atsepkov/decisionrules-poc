@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>DecisionRules Pricing Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+        background: #f4f5f7;
+        color: #111827;
+      }
+      main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 2rem 1.5rem 4rem;
+      }
+      h1 {
+        margin-top: 0;
+        font-size: 2rem;
+      }
+      h2 {
+        margin-top: 0;
+        font-size: 1.25rem;
+      }
+      p {
+        line-height: 1.6;
+      }
+      .panel {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-top: 1.5rem;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      }
+      .grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      }
+      label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.35rem;
+      }
+      input,
+      textarea,
+      select {
+        width: 100%;
+        padding: 0.6rem 0.7rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        font-family: inherit;
+        background: #f8fafc;
+        transition: border 0.2s ease, box-shadow 0.2s ease;
+      }
+      input:focus,
+      textarea:focus,
+      select:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+        background: #fff;
+      }
+      textarea {
+        min-height: 72px;
+        resize: vertical;
+      }
+      .button-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-top: 1.25rem;
+      }
+      button {
+        appearance: none;
+        border: none;
+        background: #2563eb;
+        color: #fff;
+        padding: 0.75rem 1.5rem;
+        border-radius: 999px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+      }
+      button:hover {
+        background: #1d4ed8;
+        box-shadow: 0 10px 25px rgba(37, 99, 235, 0.25);
+        transform: translateY(-1px);
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        box-shadow: none;
+        transform: none;
+      }
+      .results-container {
+        margin-top: 1rem;
+      }
+      .results-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 0.5rem;
+      }
+      .results-summary-text {
+        margin: 0;
+        font-size: 0.95rem;
+        color: #475569;
+        flex: 1;
+      }
+      .toggle-button {
+        background: transparent;
+        color: #2563eb;
+        border: 1px solid #2563eb;
+        padding: 0.45rem 1rem;
+        box-shadow: none;
+      }
+      .toggle-button:hover {
+        background: rgba(37, 99, 235, 0.08);
+        box-shadow: none;
+        transform: none;
+        color: #1d4ed8;
+      }
+      .toggle-button:disabled {
+        opacity: 0.6;
+      }
+      .code-block {
+        background: #0f172a;
+        color: #f8fafc;
+        padding: 1rem;
+        border-radius: 10px;
+        overflow-x: auto;
+        font-family: "Fira Code", "Source Code Pro", monospace;
+        font-size: 0.9rem;
+        margin-top: 0.75rem;
+      }
+      .status {
+        margin-top: 1.5rem;
+        font-weight: 600;
+      }
+      .status.success {
+        color: #047857;
+      }
+      .status.error {
+        color: #dc2626;
+      }
+      .status.info {
+        color: #2563eb;
+      }
+      .summary {
+        margin-top: 0.5rem;
+        font-weight: 600;
+      }
+      @media (max-width: 600px) {
+        main {
+          padding: 1.5rem 1rem 3rem;
+        }
+        button {
+          width: 100%;
+          text-align: center;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>DecisionRules Pricing Demo</h1>
+      <p>
+        Generate random parts with your own parameters and send them to the
+        DecisionRules solver. View the responses alongside the round-trip timing.
+      </p>
+
+      <section class="panel">
+        <h2>Part generation</h2>
+        <div class="grid">
+          <div>
+            <label for="partCount">Number of parts</label>
+            <input id="partCount" type="number" min="1" max="500" value="5" />
+          </div>
+          <div>
+            <label for="basePriceMin">Base price (min)</label>
+            <input id="basePriceMin" type="number" value="50" step="0.01" />
+          </div>
+          <div>
+            <label for="basePriceMax">Base price (max)</label>
+            <input id="basePriceMax" type="number" value="250" step="0.01" />
+          </div>
+          <div>
+            <label for="quantityMin">Quantity (min)</label>
+            <input id="quantityMin" type="number" value="1" />
+          </div>
+          <div>
+            <label for="quantityMax">Quantity (max)</label>
+            <input id="quantityMax" type="number" value="10" />
+          </div>
+        </div>
+        <div class="grid" style="margin-top: 1rem;">
+          <div>
+            <label for="methodOptions">Manufacturing processes (comma separated)</label>
+            <textarea id="methodOptions">CNC,FDM,MJF,SLS</textarea>
+          </div>
+          <div>
+            <label for="materialOptions">Materials (comma separated)</label>
+            <textarea id="materialOptions">aluminum,steel,polycarbonate,titanium</textarea>
+          </div>
+          <div>
+            <label for="tierOptions">Customer tiers (comma separated)</label>
+            <textarea id="tierOptions">standard,gold,platinum,enterprise</textarea>
+          </div>
+        </div>
+        <div class="button-row">
+          <button id="generateBtn" type="button">Generate parts</button>
+        </div>
+        <p class="summary">Generated parts: <span id="partSummary">0</span></p>
+        <div class="results-header">
+          <p id="partsPreviewSummary" class="results-summary-text"></p>
+          <button
+            type="button"
+            id="partsToggle"
+            class="toggle-button"
+            hidden
+          >
+            Show all parts
+          </button>
+        </div>
+        <pre id="partsOutput" class="code-block">No parts generated yet.</pre>
+      </section>
+
+      <section class="panel">
+        <h2>Solver</h2>
+        <p>Select which DecisionRules endpoint you want to exercise.</p>
+        <div class="button-row">
+          <button
+            type="button"
+            data-solver-mode="rules"
+            data-solver-label="rules solver"
+          >
+            Run rules solver
+          </button>
+          <button
+            type="button"
+            data-solver-mode="flow"
+            data-solver-label="pricing flow (per part)"
+          >
+            Run flow (per part)
+          </button>
+          <button
+            type="button"
+            data-solver-mode="flowBatch"
+            data-solver-label="pricing flow (batch)"
+          >
+            Run flow (batch)
+          </button>
+        </div>
+        <p id="responseTime" class="summary"></p>
+        <div id="resultsContainer" class="results-container">
+          <div class="results-header">
+            <p id="resultsSummary" class="results-summary-text"></p>
+            <button
+              type="button"
+              id="resultsToggle"
+              class="toggle-button"
+              hidden
+            >
+              Show all results
+            </button>
+          </div>
+          <pre id="results" class="code-block"></pre>
+        </div>
+      </section>
+
+      <p id="status" class="status"></p>
+    </main>
+
+    <script>
+      (function () {
+        var generateButton = document.getElementById("generateBtn");
+        var solverButtons = Array.prototype.slice.call(
+          document.querySelectorAll("[data-solver-mode]")
+        );
+        var partCountInput = document.getElementById("partCount");
+        var methodInput = document.getElementById("methodOptions");
+        var materialInput = document.getElementById("materialOptions");
+        var tierInput = document.getElementById("tierOptions");
+        var baseMinInput = document.getElementById("basePriceMin");
+        var baseMaxInput = document.getElementById("basePriceMax");
+        var quantityMinInput = document.getElementById("quantityMin");
+        var quantityMaxInput = document.getElementById("quantityMax");
+        var partsOutput = document.getElementById("partsOutput");
+        var partsPreviewSummaryEl = document.getElementById("partsPreviewSummary");
+        var partsToggleButton = document.getElementById("partsToggle");
+        var resultsOutput = document.getElementById("results");
+        var resultsSummaryEl = document.getElementById("resultsSummary");
+        var resultsToggleButton = document.getElementById("resultsToggle");
+        var statusEl = document.getElementById("status");
+        var responseTimeEl = document.getElementById("responseTime");
+        var partSummaryEl = document.getElementById("partSummary");
+
+        var generatedParts = [];
+        var latestResultsPayload = null;
+        var showingAllParts = false;
+        var showingAllResults = false;
+
+        function stringifyForDisplay(value) {
+          if (typeof value === "string") {
+            return value;
+          }
+          if (
+            typeof value === "number" ||
+            typeof value === "boolean" ||
+            value === null
+          ) {
+            return String(value);
+          }
+          try {
+            return JSON.stringify(value, null, 2);
+          } catch (error) {
+            return String(value);
+          }
+        }
+
+        function updateResultsDisplay() {
+          if (resultsSummaryEl) {
+            resultsSummaryEl.textContent = "";
+          }
+          if (resultsToggleButton) {
+            resultsToggleButton.hidden = true;
+          }
+          if (!resultsOutput) {
+            return;
+          }
+
+          if (latestResultsPayload === null || latestResultsPayload === undefined) {
+            resultsOutput.textContent = "";
+            return;
+          }
+
+          var payload = latestResultsPayload;
+
+          if (Array.isArray(payload)) {
+            var count = payload.length;
+
+            if (count === 0) {
+              resultsOutput.textContent = "[]";
+              if (resultsSummaryEl) {
+                resultsSummaryEl.textContent = "No results returned.";
+              }
+              return;
+            }
+
+            if (!showingAllResults && count > 1) {
+              resultsOutput.textContent = stringifyForDisplay(payload[0]);
+              if (resultsSummaryEl) {
+                resultsSummaryEl.textContent =
+                  "Showing the first result out of " + count + ".";
+              }
+              if (resultsToggleButton) {
+                resultsToggleButton.hidden = false;
+                resultsToggleButton.textContent = "Show all results";
+              }
+              return;
+            }
+
+            resultsOutput.textContent = stringifyForDisplay(payload);
+            if (resultsSummaryEl) {
+              resultsSummaryEl.textContent =
+                count === 1
+                  ? "Showing 1 result."
+                  : "Showing all " + count + " results.";
+            }
+            if (resultsToggleButton) {
+              if (count > 1) {
+                resultsToggleButton.hidden = false;
+                resultsToggleButton.textContent = "Collapse to first result";
+              } else {
+                resultsToggleButton.hidden = true;
+              }
+            }
+            return;
+          }
+
+          resultsOutput.textContent = stringifyForDisplay(payload);
+          if (resultsSummaryEl) {
+            resultsSummaryEl.textContent = "Showing full response.";
+          }
+        }
+
+        function clearResults() {
+          latestResultsPayload = null;
+          showingAllResults = false;
+          updateResultsDisplay();
+        }
+
+        function setResults(payload) {
+          latestResultsPayload = payload;
+          showingAllResults = false;
+          updateResultsDisplay();
+        }
+
+        if (resultsToggleButton) {
+          resultsToggleButton.addEventListener("click", function () {
+            showingAllResults = !showingAllResults;
+            updateResultsDisplay();
+          });
+        }
+
+        updateResultsDisplay();
+
+        function setStatus(message, type) {
+          if (!statusEl) {
+            return;
+          }
+          statusEl.textContent = message;
+          statusEl.className = "status" + (type ? " " + type : "");
+        }
+
+        function parseList(value) {
+          return value
+            .split(",")
+            .map(function (item) {
+              return item.trim();
+            })
+            .filter(function (item) {
+              return item.length > 0;
+            });
+        }
+
+        function randomItem(list) {
+          var index = Math.floor(Math.random() * list.length);
+          return list[index];
+        }
+
+        function randomFloat(min, max, decimals) {
+          var factor = Math.pow(10, decimals);
+          return (
+            Math.round((Math.random() * (max - min) + min) * factor) / factor
+          );
+        }
+
+        function randomInt(min, max) {
+          return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function renderParts() {
+          if (!partsOutput || !partSummaryEl) {
+            return;
+          }
+
+          var count = generatedParts.length;
+          partSummaryEl.textContent = String(count);
+
+          if (!count) {
+            partsOutput.textContent = "No parts generated yet.";
+            showingAllParts = false;
+            if (partsToggleButton) {
+              partsToggleButton.hidden = true;
+            }
+            if (partsPreviewSummaryEl) {
+              partsPreviewSummaryEl.textContent = "";
+            }
+            return;
+          }
+
+          if (count === 1) {
+            partsOutput.textContent = stringifyForDisplay(generatedParts[0]);
+            showingAllParts = false;
+            if (partsToggleButton) {
+              partsToggleButton.hidden = true;
+            }
+            if (partsPreviewSummaryEl) {
+              partsPreviewSummaryEl.textContent = "Showing the only generated part.";
+            }
+            return;
+          }
+
+          if (!showingAllParts) {
+            partsOutput.textContent = stringifyForDisplay(generatedParts[0]);
+            if (partsToggleButton) {
+              partsToggleButton.hidden = false;
+              partsToggleButton.textContent = "Show all parts";
+            }
+            if (partsPreviewSummaryEl) {
+              partsPreviewSummaryEl.textContent =
+                "Showing first part out of " + count + ".";
+            }
+          } else {
+            partsOutput.textContent = stringifyForDisplay(generatedParts);
+            if (partsToggleButton) {
+              partsToggleButton.hidden = false;
+              partsToggleButton.textContent = "Collapse to first part";
+            }
+            if (partsPreviewSummaryEl) {
+              partsPreviewSummaryEl.textContent =
+                "Showing all " + count + " generated parts.";
+            }
+          }
+        }
+
+        if (generateButton) {
+          generateButton.addEventListener("click", function () {
+            setStatus("", "");
+            if (responseTimeEl) {
+              responseTimeEl.textContent = "";
+            }
+            clearResults();
+
+            var count = parseInt(
+              partCountInput && partCountInput.value ? partCountInput.value : "0",
+              10
+            );
+            if (!Number.isFinite(count) || count <= 0) {
+              setStatus("Part count must be a positive number.", "error");
+              return;
+            }
+
+            var methods = parseList(
+              methodInput && methodInput.value ? methodInput.value : ""
+            );
+            var materials = parseList(
+              materialInput && materialInput.value ? materialInput.value : ""
+            );
+            var tiers = parseList(
+              tierInput && tierInput.value ? tierInput.value : ""
+            );
+
+            if (!methods.length || !materials.length || !tiers.length) {
+              setStatus(
+                "Please provide at least one value for methods, materials and customer tiers.",
+                "error"
+              );
+              return;
+            }
+
+            var baseMin = parseFloat(
+              baseMinInput && baseMinInput.value ? baseMinInput.value : ""
+            );
+            var baseMax = parseFloat(
+              baseMaxInput && baseMaxInput.value ? baseMaxInput.value : ""
+            );
+            var quantityMin = parseInt(
+              quantityMinInput && quantityMinInput.value
+                ? quantityMinInput.value
+                : "",
+              10
+            );
+            var quantityMax = parseInt(
+              quantityMaxInput && quantityMaxInput.value
+                ? quantityMaxInput.value
+                : "",
+              10
+            );
+
+            if (
+              !Number.isFinite(baseMin) ||
+              !Number.isFinite(baseMax) ||
+              baseMin > baseMax
+            ) {
+              setStatus("Base price range is invalid.", "error");
+              return;
+            }
+
+            if (
+              !Number.isFinite(quantityMin) ||
+              !Number.isFinite(quantityMax) ||
+              quantityMin > quantityMax
+            ) {
+              setStatus("Quantity range is invalid.", "error");
+              return;
+            }
+
+            generatedParts = [];
+            showingAllParts = false;
+            for (var i = 0; i < count; i++) {
+              generatedParts.push({
+                basePrice: randomFloat(baseMin, baseMax, 2),
+                quantity: randomInt(quantityMin, quantityMax),
+                method: randomItem(methods),
+                material: randomItem(materials),
+                customerTier: randomItem(tiers),
+              });
+            }
+
+            setStatus("Generated " + generatedParts.length + " part(s).", "success");
+            renderParts();
+          });
+        }
+
+        function setSolverButtonsDisabled(disabled) {
+          solverButtons.forEach(function (button) {
+            button.disabled = disabled;
+          });
+        }
+
+        async function runSolver(mode, labelText) {
+          if (!generatedParts.length) {
+            setStatus("Generate parts before running the solver.", "error");
+            return;
+          }
+
+          var label = labelText || "solver";
+          var formattedLabel =
+            label.charAt(0).toUpperCase() + label.slice(1);
+          var endpoint = "/rules";
+          if (mode === "flow") {
+            endpoint = "/flow";
+          } else if (mode === "flowBatch") {
+            endpoint = "/flow?batch=true";
+          }
+
+          setStatus(
+            "Sending " +
+              generatedParts.length +
+              " part(s) to the " +
+              label +
+              "...",
+            "info"
+          );
+          setSolverButtonsDisabled(true);
+          if (responseTimeEl) {
+            responseTimeEl.textContent = "";
+          }
+          clearResults();
+
+          var started = performance.now();
+
+          try {
+            var response = await fetch(endpoint, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(generatedParts),
+            });
+
+            var finished = performance.now();
+            var duration = finished - started;
+
+            if (!response.ok) {
+              var errorText = await response.text();
+              throw new Error(errorText || "Solver request failed.");
+            }
+
+            var payload = await response.json();
+            if (responseTimeEl) {
+              responseTimeEl.textContent =
+                "Response time (" +
+                label +
+                "): " +
+                duration.toFixed(2) +
+                " ms";
+            }
+            setResults(payload);
+            setStatus(formattedLabel + " completed successfully.", "success");
+          } catch (error) {
+            if (responseTimeEl) {
+              responseTimeEl.textContent = "";
+            }
+            clearResults();
+            if (error instanceof Error) {
+              setStatus(
+                formattedLabel + " failed: " + error.message,
+                "error"
+              );
+            } else {
+              setStatus(
+                formattedLabel + " failed: Unexpected error occurred.",
+                "error"
+              );
+            }
+          } finally {
+            setSolverButtonsDisabled(false);
+          }
+        }
+
+        solverButtons.forEach(function (button) {
+          button.addEventListener("click", function () {
+            var mode = button.getAttribute("data-solver-mode") || "rules";
+            var label = button.getAttribute("data-solver-label") || "solver";
+            runSolver(mode, label);
+          });
+        });
+
+        if (partsToggleButton) {
+          partsToggleButton.addEventListener("click", function () {
+            showingAllParts = !showingAllParts;
+            renderParts();
+          });
+        }
+
+        renderParts();
+      })();
+    </script>
+  </body>
+</html>

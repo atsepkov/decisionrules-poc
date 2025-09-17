@@ -24,6 +24,7 @@ cp .env.example .env
 | `DISCOUNT_RULE_ID` | ID of discount decision table |
 | `MANUFACTUR_RULE_ID` | ID of manufacturability rule |
 | `PRICING_FLOW_ID` | ID of rule flow combining pricing logic |
+| `LOG_RESPONSE` | Optional flag (`true` to log DecisionRules responses) |
 
 ## Running
 

@@ -74,11 +74,37 @@ async function calcPriceWithRules(part: Part) {
     dr.solve(manufactRuleId, part),
   ]);
 
-  const markupAmt = (markupRes as any).markupAmount ?? 0;
-  const discountAmt = (discountRes as any).discountValue ?? 0;
-  const finalPrice = part.basePrice + markupAmt - discountAmt;
+  const markupAmountRaw =
+    (markupRes as any)?.markupAmount ?? (markupRes as any)?.markup ?? 0;
+  const discountAmountRaw =
+    (discountRes as any)?.discountValue ?? (discountRes as any)?.discount ?? 0;
 
-  return { ...part, finalPrice, manufacturable: (manufactRes as any).isFeasible };
+  const markupAmount =
+    typeof markupAmountRaw === "number"
+      ? markupAmountRaw
+      : Number(markupAmountRaw) || 0;
+  const discountAmount =
+    typeof discountAmountRaw === "number"
+      ? discountAmountRaw
+      : Number(discountAmountRaw) || 0;
+
+  const finalPrice = part.basePrice + markupAmount - discountAmount;
+  const manufacturable = Boolean((manufactRes as any)?.isFeasible);
+
+  return {
+    input: part,
+    outputs: {
+      markup: markupRes,
+      discount: discountRes,
+      manufacturability: manufactRes,
+    },
+    summary: {
+      markupAmount,
+      discountAmount,
+      finalPrice,
+      manufacturable,
+    },
+  };
 }
 
 async function calcPriceViaFlow(part: Part) {

@@ -135,11 +135,14 @@ async function calcPriceWithRules(part: Part) {
 }
 
 async function calcPriceViaFlow(part: Part) {
-  return dr.solve(pricingFlowId, part);
+  return dr.solve(pricingFlowId, { input: part });
 }
 
 async function calcPriceViaFlowBatch(parts: Part[]) {
-  return dr.solve(pricingFlowId, parts);
+  return dr.solve(
+    pricingFlowId,
+    parts.map((part) => ({ input: part }))
+  );
 }
 
 const htmlFilePath = "public/index.html";

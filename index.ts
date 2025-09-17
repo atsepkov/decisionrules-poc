@@ -69,9 +69,9 @@ function logDecisionRulesError(
 
 async function calcPriceWithRules(part: Part) {
   const [markupRes, discountRes, manufactRes] = await Promise.all([
-    dr.solve(markupRuleId, part, "latest"),
-    dr.solve(discountRuleId, part, "latest"),
-    dr.solve(manufactRuleId, part, "latest"),
+    dr.solve(markupRuleId, part),
+    dr.solve(discountRuleId, part),
+    dr.solve(manufactRuleId, part),
   ]);
 
   const markupAmt = (markupRes as any).markupAmount ?? 0;
@@ -82,11 +82,11 @@ async function calcPriceWithRules(part: Part) {
 }
 
 async function calcPriceViaFlow(part: Part) {
-  return dr.solve(pricingFlowId, part, "latest");
+  return dr.solve(pricingFlowId, part);
 }
 
 async function calcPriceViaFlowBatch(parts: Part[]) {
-  return dr.solve(pricingFlowId, parts, "latest");
+  return dr.solve(pricingFlowId, parts);
 }
 
 const htmlFilePath = "public/index.html";

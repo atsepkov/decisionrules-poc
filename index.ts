@@ -145,6 +145,20 @@ async function calcPriceViaFlowBatch(parts: Part[]) {
   );
 }
 
+function pairInputsWithResponses(parts: Part[], responses: unknown) {
+  if (Array.isArray(responses)) {
+    return responses.map((payload, index) => ({
+      input: parts[index] ?? null,
+      response: payload,
+    }));
+  }
+
+  return parts.map((part) => ({
+    input: part,
+    response: responses,
+  }));
+}
+
 const htmlFilePath = "public/index.html";
 
 async function serveHtml() {
@@ -200,13 +214,21 @@ const server = Bun.serve({
 
       if (url.pathname === "/flow") {
         if (url.searchParams.get("batch") === "true") {
-          const results = await calcPriceViaFlowBatch(parts);
-          logDecisionRulesResponse({ path: url.pathname, parts }, results);
-          return Response.json(results);
+          const rawResults = await calcPriceViaFlowBatch(parts);
+          const resultsWithInputs = pairInputsWithResponses(parts, rawResults);
+          logDecisionRulesResponse(
+            { path: url.pathname, parts },
+            resultsWithInputs
+          );
+          return Response.json(resultsWithInputs);
         }
-        const results = await Promise.all(parts.map(calcPriceViaFlow));
-        logDecisionRulesResponse({ path: url.pathname, parts }, results);
-        return Response.json(results);
+        const rawResults = await Promise.all(parts.map(calcPriceViaFlow));
+        const resultsWithInputs = pairInputsWithResponses(parts, rawResults);
+        logDecisionRulesResponse(
+          { path: url.pathname, parts },
+          resultsWithInputs
+        );
+        return Response.json(resultsWithInputs);
       }
 
       return new Response("Not Found", { status: 404 });

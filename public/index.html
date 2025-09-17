@@ -223,6 +223,17 @@
           <button id="generateBtn" type="button">Generate parts</button>
         </div>
         <p class="summary">Generated parts: <span id="partSummary">0</span></p>
+        <div class="results-header">
+          <p id="partsPreviewSummary" class="results-summary-text"></p>
+          <button
+            type="button"
+            id="partsToggle"
+            class="toggle-button"
+            hidden
+          >
+            Show all parts
+          </button>
+        </div>
         <pre id="partsOutput" class="code-block">No parts generated yet.</pre>
       </section>
 
@@ -287,6 +298,8 @@
         var quantityMinInput = document.getElementById("quantityMin");
         var quantityMaxInput = document.getElementById("quantityMax");
         var partsOutput = document.getElementById("partsOutput");
+        var partsPreviewSummaryEl = document.getElementById("partsPreviewSummary");
+        var partsToggleButton = document.getElementById("partsToggle");
         var resultsOutput = document.getElementById("results");
         var resultsSummaryEl = document.getElementById("resultsSummary");
         var resultsToggleButton = document.getElementById("resultsToggle");
@@ -296,6 +309,7 @@
 
         var generatedParts = [];
         var latestResultsPayload = null;
+        var showingAllParts = false;
         var showingAllResults = false;
 
         function stringifyForDisplay(value) {
@@ -442,12 +456,55 @@
           if (!partsOutput || !partSummaryEl) {
             return;
           }
-          if (!generatedParts.length) {
+
+          var count = generatedParts.length;
+          partSummaryEl.textContent = String(count);
+
+          if (!count) {
             partsOutput.textContent = "No parts generated yet.";
-          } else {
-            partsOutput.textContent = JSON.stringify(generatedParts, null, 2);
+            showingAllParts = false;
+            if (partsToggleButton) {
+              partsToggleButton.hidden = true;
+            }
+            if (partsPreviewSummaryEl) {
+              partsPreviewSummaryEl.textContent = "";
+            }
+            return;
           }
-          partSummaryEl.textContent = String(generatedParts.length);
+
+          if (count === 1) {
+            partsOutput.textContent = stringifyForDisplay(generatedParts[0]);
+            showingAllParts = false;
+            if (partsToggleButton) {
+              partsToggleButton.hidden = true;
+            }
+            if (partsPreviewSummaryEl) {
+              partsPreviewSummaryEl.textContent = "Showing the only generated part.";
+            }
+            return;
+          }
+
+          if (!showingAllParts) {
+            partsOutput.textContent = stringifyForDisplay(generatedParts[0]);
+            if (partsToggleButton) {
+              partsToggleButton.hidden = false;
+              partsToggleButton.textContent = "Show all parts";
+            }
+            if (partsPreviewSummaryEl) {
+              partsPreviewSummaryEl.textContent =
+                "Showing first part out of " + count + ".";
+            }
+          } else {
+            partsOutput.textContent = stringifyForDisplay(generatedParts);
+            if (partsToggleButton) {
+              partsToggleButton.hidden = false;
+              partsToggleButton.textContent = "Collapse to first part";
+            }
+            if (partsPreviewSummaryEl) {
+              partsPreviewSummaryEl.textContent =
+                "Showing all " + count + " generated parts.";
+            }
+          }
         }
 
         if (generateButton) {
@@ -523,6 +580,7 @@
             }
 
             generatedParts = [];
+            showingAllParts = false;
             for (var i = 0; i < count; i++) {
               generatedParts.push({
                 basePrice: randomFloat(baseMin, baseMax, 2),
@@ -630,6 +688,13 @@
             runSolver(mode, label);
           });
         });
+
+        if (partsToggleButton) {
+          partsToggleButton.addEventListener("click", function () {
+            showingAllParts = !showingAllParts;
+            renderParts();
+          });
+        }
 
         renderParts();
       })();

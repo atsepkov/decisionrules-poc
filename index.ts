@@ -13,6 +13,10 @@ const decisionRulesHost =
 
 const dr = new DecisionRules({ solverKey, host: decisionRulesHost });
 
+const shouldLogDecisionRulesResponses =
+  String(process.env.DECISION_RULES_LOG_RESPONSES || "").toLowerCase() ===
+  "true";
+
 type Part = {
   basePrice: number;
   method: string;
@@ -65,6 +69,29 @@ function logDecisionRulesError(
       value: err,
     });
   }
+}
+
+function logDecisionRulesResponse(
+  context: { path: string; parts: Part[] },
+  payload: unknown
+) {
+  if (!shouldLogDecisionRulesResponses) {
+    return;
+  }
+
+  const baseLog = {
+    timestamp: new Date().toISOString(),
+    path: context.path,
+    parts: summarizeParts(context.parts),
+  };
+
+  console.log(
+    "[DecisionRules] Response",
+    safeStringify({
+      ...baseLog,
+      payload,
+    })
+  );
 }
 
 async function calcPriceWithRules(part: Part) {
@@ -164,15 +191,18 @@ const server = Bun.serve({
     try {
       if (url.pathname === "/rules") {
         const results = await Promise.all(parts.map(calcPriceWithRules));
+        logDecisionRulesResponse({ path: url.pathname, parts }, results);
         return Response.json(results);
       }
 
       if (url.pathname === "/flow") {
         if (url.searchParams.get("batch") === "true") {
           const results = await calcPriceViaFlowBatch(parts);
+          logDecisionRulesResponse({ path: url.pathname, parts }, results);
           return Response.json(results);
         }
         const results = await Promise.all(parts.map(calcPriceViaFlow));
+        logDecisionRulesResponse({ path: url.pathname, parts }, results);
         return Response.json(results);
       }
 
